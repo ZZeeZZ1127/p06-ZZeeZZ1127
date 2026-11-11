@@ -96,8 +96,15 @@ class Transformer:
                 else:
                     self.target_height = float(self.context.request.height)
             else:
-                self.target_height = self.engine.get_proportional_height(
-                    self.context.request.width
+                # A very wide source can make this round down to 0, which
+                # then divides by zero in fit-in. Keep at least one pixel.
+                self.target_height = float(
+                    max(
+                        self.engine.get_proportional_height(
+                            self.context.request.width
+                        ),
+                        1,
+                    )
                 )
 
     def get_target_dimensions(self):
@@ -284,17 +291,25 @@ class Transformer:
             > self.target_height / source_height
         ):
             crop_width = source_width
-            crop_height = int(
-                round(source_width * self.target_height / target_width, 0)
+            crop_height = max(
+                int(
+                    round(
+                        source_width * self.target_height / target_width, 0
+                    )
+                ),
+                1,
             )
         else:
-            crop_width = int(
-                round(
-                    math.ceil(
-                        self.target_width * source_height / target_height
-                    ),
-                    0,
-                )
+            crop_width = max(
+                int(
+                    round(
+                        math.ceil(
+                            self.target_width * source_height / target_height
+                        ),
+                        0,
+                    )
+                ),
+                1,
             )
             crop_height = source_height
 
@@ -391,14 +406,16 @@ class Transformer:
             source_width / self.target_width * sign
             >= source_height / self.target_height * sign
         ):
-            resize_height = round(
-                source_height * self.target_width / source_width + 1e-5
+            resize_height = max(
+                round(source_height * self.target_width / source_width + 1e-5),
+                1,
             )
             resize_width = self.target_width
         else:
             resize_height = self.target_height
-            resize_width = round(
-                source_width * self.target_height / source_height + 1e-5
+            resize_width = max(
+                round(source_width * self.target_height / source_height + 1e-5),
+                1,
             )
 
         # ensure that filter should work on the real image size
