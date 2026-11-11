@@ -76,6 +76,7 @@ class Engine(BaseEngine):
         self.subsampling = None
         self.qtables = None
         self.original_mode = None
+        self.original_transparency = None
         self.exif = None
         self.iptc = None
 
@@ -110,6 +111,7 @@ class Engine(BaseEngine):
         self.icc_profile = img.info.get("icc_profile")
         self.exif = img.info.get("exif")
         self.original_mode = img.mode
+        self.original_transparency = img.info.get("transparency")
 
         if self.context.config.PRESERVE_IPTC_INFO:
             jpegiptc_object = JpegIPTC()
@@ -279,6 +281,17 @@ class Engine(BaseEngine):
                 self.image = self.image.quantize(method=quantize_method)
 
         ext = requested_extension or self.get_default_extension()
+
+        # quantize() drops the source palette's transparency index. For a
+        # palette GIF that means the once-transparent pixels are written out
+        # as an opaque (usually black) box. Carry the source index over so
+        # those pixels stay transparent in the GIF.
+        if (
+            ext == ".gif"
+            and self.image.mode == "P"
+            and isinstance(self.original_transparency, int)
+        ):
+            self.image.info["transparency"] = self.original_transparency
 
         if ext in (".heic", ".heif") and not HAVE_HEIF:
             logger.warning(
